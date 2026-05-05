@@ -1,0 +1,352 @@
+
+===============================================================
+     CORE OF ALL 8 PROGRAMS - SIMPLE EXPLANATION
+===============================================================
+
+
+
+===============================================================
+  DL-1: BOSTON HOUSE PRICE
+===============================================================
+
+WHAT IT DOES:
+  Takes 13 details about a house (rooms, crime rate, etc.)
+  and predicts its price.
+
+CORE THING:
+  ONE neuron does this math:
+  price = w1 x feature1 + w2 x feature2 + ... + w13 x feature13 + bias
+
+  The model LEARNS the weights (w1 to w13) by training.
+  It adjusts them again and again until predictions get
+  close to actual prices.
+
+WHAT EACH PART MEANS:
+
+  StandardScaler
+    Makes all features same size.
+    Without it, a feature with big numbers (like tax=500)
+    would dominate over small numbers (like rooms=6).
+
+  Dense(1, activation='linear')
+    One neuron, gives raw number output.
+    Not 0/1, not probability, just a price number.
+
+  loss='mse'
+    Measures error as (actual - predicted) squared.
+    Big mistakes get punished more.
+
+  epochs=100
+    Shows all data to model 100 times so it keeps improving.
+
+
+
+===============================================================
+  DL-2: IMDB SENTIMENT
+===============================================================
+
+WHAT IT DOES:
+  Reads a movie review (text) and tells if it is
+  POSITIVE or NEGATIVE.
+
+CORE THING:
+  Converts text into numbers using TF-IDF,
+  then a neural network decides positive/negative.
+
+WHAT EACH PART MEANS:
+
+  clean_text()
+    Removes junk from text (HTML tags like <br>,
+    symbols like !!!).
+    They dont help predict sentiment, so remove them.
+
+  TfidfVectorizer(max_features=5000)
+    Picks the 5000 most important words.
+    Converts each review into 5000 numbers based on
+    how important each word is in that review.
+    Common words like "the" get low score.
+    Special words like "masterpiece" get high score.
+
+  Dense(128, relu) then Dense(64, relu)
+    Hidden layers that learn patterns like
+    "words amazing + loved together = positive"
+
+  Dense(1, sigmoid)
+    Squeezes output between 0 and 1.
+    Above 0.5 = positive.
+    Below 0.5 = negative.
+
+  loss='binary_crossentropy'
+    Special error formula for yes/no problems.
+
+
+
+===============================================================
+  DL-3: FASHION MNIST CNN
+===============================================================
+
+WHAT IT DOES:
+  Looks at a 28x28 pixel image of clothing and tells
+  which of 10 categories it is (shirt, shoe, bag, etc.)
+
+CORE THING:
+  Filters slide across the image to detect patterns.
+  First edges, then shapes, then objects.
+
+WHAT EACH PART MEANS:
+
+  reshape(-1, 28, 28, 1)
+    CSV stores image as flat 784 numbers.
+    This converts back to 28x28 image format
+    that CNN needs.
+
+  /255.0
+    Pixels are 0-255. Dividing makes them 0-1
+    so model trains better with small numbers.
+
+  Conv2D(64, (3,3))
+    64 small 3x3 windows slide across image.
+    Each window learns to detect one feature
+    (like horizontal edge, curve, corner).
+
+  MaxPooling2D(2,2)
+    Shrinks image to half size by keeping only
+    the strongest value in each 2x2 block.
+    Reduces work, keeps important info.
+
+  Dropout(0.3)
+    Randomly switches off 30% of neurons during training.
+    Forces model to not depend on any single neuron.
+    Prevents memorization (overfitting).
+    Automatically turned OFF during prediction.
+
+  Flatten()
+    CNN gives 2D data, Dense layer needs 1D.
+    This flattens it into a single line of numbers.
+
+  Dense(10, softmax)
+    10 neurons, one per class.
+    Softmax makes them output probabilities that
+    add up to 1.0.
+    Highest probability = predicted class.
+
+  loss='sparse_categorical_crossentropy'
+    Error formula for multiple categories
+    when labels are integers (0,1,2...9).
+
+
+
+===============================================================
+  DL-4: GOOGLE STOCK RNN
+===============================================================
+
+WHAT IT DOES:
+  Looks at past 60 days of stock prices and
+  predicts tomorrows price.
+
+CORE THING:
+  RNN has MEMORY. It reads prices one day at a time,
+  remembering what it saw before. By day 60 it has
+  context of the whole history to make prediction.
+
+WHAT EACH PART MEANS:
+
+  MinMaxScaler(0,1)
+    Scales prices to 0-1 range.
+    RNN works badly with big numbers like 1500.
+
+  create_dataset (sliding window of 60)
+    Creates training samples:
+    [day1-60] predicts day61
+    [day2-61] predicts day62
+    [day3-62] predicts day63
+    The window slides forward by 1 each time.
+
+  reshape to (samples, 60, 1)
+    RNN needs 3D input:
+    - how many samples
+    - how many timesteps (60 days)
+    - how many features per step (1 = just price)
+
+  SimpleRNN(50, return_sequences=True)
+    50 memory units.
+    return_sequences=True means it outputs at EVERY
+    timestep. Needed because another RNN comes next
+    and it needs input at every step.
+
+  SimpleRNN(50)
+    Second RNN layer.
+    return_sequences=False (default).
+    Outputs only at the LAST step, because Dense
+    layer comes next and needs just one vector.
+
+  inverse_transform
+    Model predicts in 0-1 scale.
+    This converts back to real dollar prices
+    so we can understand them.
+
+
+
+===============================================================
+  HPC-1: PARALLEL BFS AND DFS
+===============================================================
+
+WHAT IT DOES:
+  Visits all nodes in a graph.
+  BFS goes level by level.
+  DFS goes deep first then backtracks.
+
+CORE THING:
+  Multiple threads visit different nodes AT THE SAME TIME
+  instead of one by one.
+
+WHAT EACH PART MEANS:
+
+  #pragma omp parallel for
+    Splits the loop so each thread processes different
+    nodes simultaneously.
+
+  #pragma omp critical
+    The queue and visited array are SHARED.
+    If 2 threads touch them at same time = data corruption.
+    Critical makes only 1 thread enter at a time.
+    Like a single-person bathroom - one at a time.
+
+  #pragma omp task
+    In DFS, each branch of the tree becomes an
+    independent job. Any free thread picks it up.
+
+  #pragma omp single
+    Only 1 thread starts the DFS from root.
+    Without it, ALL threads start from root
+    = wasted duplicate work.
+
+
+
+===============================================================
+  HPC-2: PARALLEL BUBBLE AND MERGE SORT
+===============================================================
+
+WHAT IT DOES:
+  Sorts an array of numbers.
+  Compares speed of normal vs parallel versions.
+
+CORE THING:
+
+  Bubble Sort Problem:
+    Normally cant parallelize because adjacent
+    comparisons overlap (comparing index 3-4 and 4-5
+    both touch index 4).
+
+  Odd-Even Trick (Solution):
+    EVEN phase: compare (0,1), (2,3), (4,5)
+    ODD phase:  compare (1,2), (3,4), (5,6)
+    No overlap = safe to parallelize!
+
+  Merge Sort:
+    Left half and right half are independent.
+    Sort them on DIFFERENT threads simultaneously.
+
+WHAT EACH PART MEANS:
+
+  j += 2
+    Jumps by 2 so pairs dont overlap.
+    (0,1) then (2,3) then (4,5)
+
+  #pragma omp parallel sections
+    Runs two different code blocks on different
+    threads at same time.
+    One thread sorts left half, other sorts right half.
+
+  depth parameter
+    Stops creating threads after certain depth.
+    Too many threads = overhead is worse than speedup.
+
+  omp_get_wtime()
+    Precise timer to measure how many seconds
+    each sort takes. Used to compare speeds.
+
+
+
+===============================================================
+  HPC-3: PARALLEL REDUCTION (MIN/MAX/SUM/AVG)
+===============================================================
+
+WHAT IT DOES:
+  Finds minimum, maximum, sum, and average of an array.
+
+CORE THING:
+  "reduction" gives each thread its OWN PRIVATE COPY
+  of the variable. Each thread works on its portion.
+  OpenMP combines all results at the end automatically.
+
+WHAT EACH PART MEANS:
+
+  reduction(min : minval)
+    Each thread finds minimum in its portion.
+    OpenMP picks the overall minimum from all threads.
+
+  reduction(max : maxval)
+    Same but for maximum.
+
+  reduction(+ : sum)
+    Each thread adds its portion.
+    OpenMP adds all partial sums together at end.
+
+  Why not just use a shared variable?
+    RACE CONDITION! Two threads adding to same
+    variable at same time = wrong answer.
+    Reduction avoids this completely because
+    each thread has its OWN private copy.
+
+
+
+===============================================================
+  HPC-4: PARALLEL LINEAR REGRESSION (AIML)
+===============================================================
+
+WHAT IT DOES:
+  Finds the best-fit line (y = mx + c) for
+  1 million data points.
+
+CORE THING:
+  The formula needs 4 sums (sum_x, sum_y, sum_xy, sum_x2).
+  Computing these 4 sums across 1 million points is
+  parallelized using reduction.
+
+WHAT EACH PART MEANS:
+
+  y = 2*x + 3
+    Generates fake data where we KNOW the answer
+    (slope=2, intercept=3) to verify our program works.
+
+  reduction(+:sum_x, sum_y, sum_xy, sum_x2)
+    Computes ALL 4 sums in parallel in a single loop.
+    Each thread handles about 250,000 points.
+    Each thread has private copies of all 4 variables.
+
+  The formula
+    Plugs the 4 sums into math formula to calculate
+    slope (m) and intercept (c).
+
+  Output m=2, c=3
+    Confirms the program calculated correctly
+    because we generated data from y = 2x + 3.
+
+
+
+===============================================================
+              QUICK REVISION TABLE
+===============================================================
+
+  DL-1 Boston    = Predict price    = 1 neuron + linear + mse
+  DL-2 IMDB      = Positive/Neg     = TF-IDF + sigmoid + binary_CE
+  DL-3 Fashion   = 10 clothes types = Conv2D + MaxPool + softmax
+  DL-4 Stock     = Predict price    = 60-day window + RNN + memory
+
+  HPC-1 BFS/DFS  = Visit graph      = critical + task + single
+  HPC-2 Sorts    = Sort array       = odd-even + parallel sections
+  HPC-3 Reduction= Min/Max/Sum/Avg  = reduction(op:var)
+  HPC-4 AIML     = Best-fit line    = reduction(+:4 vars)
+
+===============================================================
