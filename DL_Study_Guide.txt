@@ -1,0 +1,685 @@
+
+===============================================================
+       DEEP LEARNING PRACTICALS - COMPLETE STUDY GUIDE
+===============================================================
+
+
+---------------------------------------------------------------
+                    BASICS FIRST
+---------------------------------------------------------------
+
+What is Deep Learning?
+  Deep Learning = Teaching a computer to learn patterns
+  from data using Neural Networks.
+
+What is a Neural Network?
+  - Made up of NEURONS (small math units)
+  - Organized in LAYERS:
+      Input Layer --> Hidden Layers --> Output Layer
+  - Each connection has a WEIGHT (number the model learns)
+  - Each neuron has a BIAS (extra number added to shift output)
+
+How Training Works (simple):
+  1. Give data to model --> model makes a prediction
+  2. Compare with actual answer --> calculate LOSS (error)
+  3. Adjust weights to reduce error (BACKPROPAGATION)
+  4. Repeat many times (EPOCHS) until error is small
+
+Key Terms:
+  Epoch       = One complete pass through all training data
+  Batch Size  = How many samples to process before updating weights
+  Loss        = How wrong the model is (lower = better)
+  Adam        = Smart optimizer that adjusts weights automatically
+  Overfitting = Model memorizes training data, fails on new data
+  Train-Test  = Keep some data aside to test if model truly learned
+
+Common Pattern in ALL 4 DL Practicals:
+  1. Import libraries
+  2. Load dataset
+  3. Preprocess data (clean, scale, reshape)
+  4. Split into train and test
+  5. Build model
+  6. Train model (fit)
+  7. Evaluate and plot results
+
+Activation Functions (IMPORTANT - will be asked!):
+  ReLU    = max(0, x)     --> used in HIDDEN layers
+  Sigmoid = 1/(1+e^-x)   --> output 0 to 1, used for BINARY classification
+  Softmax = e^xi / sum    --> output probabilities for MULTI-CLASS
+  Linear  = x (as is)     --> used for REGRESSION (predicting numbers)
+
+What Loss to Use:
+  Regression (price)      --> mse (Mean Squared Error)
+  Binary (yes/no)         --> binary_crossentropy
+  Multi-class (10 types)  --> sparse_categorical_crossentropy
+
+
+
+===============================================================
+  PRACTICAL 1: BOSTON HOUSE PRICE PREDICTION
+===============================================================
+
+AIM: Predict house prices in Boston using a neural network.
+
+PROBLEM TYPE: Regression (output is a continuous number - price)
+
+MODEL: Single neuron with linear activation = Linear Regression
+
+DATASET: 506 houses, 13 features each, target = MEDV (price)
+  Important features:
+  - RM (rooms) --> more rooms = higher price
+  - LSTAT (poverty %) --> more poverty = lower price
+
+
+----------- CODE LINE BY LINE -----------
+
+
+--- STEP 1: IMPORT LIBRARIES ---
+
+import numpy as np
+  --> numpy = library for math operations (arrays, matrices)
+
+import pandas as pd
+  --> pandas = library for working with data tables (like Excel)
+
+import matplotlib.pyplot as plt
+  --> matplotlib = library for drawing graphs and charts
+
+from sklearn.model_selection import train_test_split
+  --> function that splits data into training set and testing set
+
+from sklearn.preprocessing import StandardScaler
+  --> StandardScaler = makes all features have same scale
+      (converts to mean=0, std=1)
+
+from tensorflow.keras.models import Sequential
+  --> Sequential = way to build neural network by adding layers one by one
+
+from tensorflow.keras.layers import Dense
+  --> Dense = fully connected layer (every input connects to every neuron)
+
+
+--- STEP 2: LOAD DATASET ---
+
+df = pd.read_csv("1_boston_housing.csv")
+  --> reads the CSV file, stores as a table called df
+
+df.columns = df.columns.str.replace('"', '')
+  --> removes extra quote marks from column names (cleaning)
+
+df.head()
+  --> shows first 5 rows of data to verify loading worked
+
+
+--- STEP 3: SEPARATE FEATURES AND TARGET ---
+
+X = df.drop("MEDV", axis=1)
+  --> X = all columns EXCEPT MEDV (13 input features)
+  --> axis=1 means drop a column (axis=0 would drop a row)
+
+y = df["MEDV"]
+  --> y = only the MEDV column (the price we want to predict)
+
+print(X.shape, y.shape)
+  --> shows (506, 13) and (506,)
+  --> meaning: 506 houses, 13 features each
+
+
+--- STEP 4: TRAIN-TEST SPLIT ---
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+  --> splits data: 80% for training, 20% for testing
+  --> test_size=0.2 means 20% goes to test
+  --> random_state=42 means same split every time you run
+  --> X_train = training features (~404 samples)
+  --> X_test = test features (~102 samples)
+  --> y_train = training prices
+  --> y_test = test prices (model never sees these during training)
+
+
+--- STEP 5: FEATURE SCALING ---
+
+scaler = StandardScaler()
+  --> creates a scaler object
+
+X_train = scaler.fit_transform(X_train)
+  --> fit = learns the mean and std from training data
+  --> transform = applies formula: (value - mean) / std
+  --> after this, all features have mean=0 and std=1
+
+X_test = scaler.transform(X_test)
+  --> ONLY transform, no fit!
+  --> uses the SAME mean/std learned from training data
+
+  WHY only transform on test?
+    If we fit on test data too, we would be "cheating"
+    This is called DATA LEAKAGE - test data should not
+    influence preprocessing.
+
+  WHY scale at all?
+    Feature RM (rooms) ranges 3-9
+    Feature TAX ranges 180-700
+    Without scaling, model thinks TAX is more important
+    just because its numbers are bigger.
+
+
+--- STEP 6: BUILD THE MODEL ---
+
+model = Sequential()
+  --> creates an empty neural network
+
+model.add(Dense(1, input_shape=(X_train.shape[1],), activation='linear'))
+  --> Dense(1) = adds ONE neuron
+  --> input_shape=(13,) = this neuron takes 13 inputs
+  --> activation='linear' = output = weighted sum as-is
+  --> This neuron computes:
+      price = w1*CRIM + w2*ZN + ... + w13*LSTAT + bias
+  --> Total parameters: 13 weights + 1 bias = 14
+
+model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+  --> optimizer='adam' = how to adjust weights (smart gradient descent)
+  --> loss='mse' = Mean Squared Error = average of (actual-predicted)^2
+  --> metrics=['mae'] = also track Mean Absolute Error
+
+model.summary()
+  --> prints model structure (shows 14 trainable parameters)
+
+
+--- STEP 7: TRAIN THE MODEL ---
+
+history = model.fit(
+    X_train, y_train,
+    epochs=100,
+    batch_size=16,
+    validation_split=0.2,
+    verbose=1
+)
+  --> X_train, y_train = data to learn from
+  --> epochs=100 = go through all data 100 times
+  --> batch_size=16 = process 16 houses, then update weights
+  --> validation_split=0.2 = keep 20% of training data to check overfitting
+  --> history = saves loss values for plotting
+
+
+--- STEP 8: EVALUATE ---
+
+loss, mae = model.evaluate(X_test, y_test)
+  --> tests model on data it has NEVER seen
+  --> returns MSE (loss) and MAE
+
+print("Test Loss (MSE):", loss)
+print("Test MAE:", mae)
+  --> MAE of 3.5 means prediction is off by $3,500 on average
+
+
+--- STEP 9: PREDICT ---
+
+y_pred = model.predict(X_test)
+  --> makes predictions for all test houses
+
+for i in range(5):
+    print(f"Actual: {y_test.iloc[i]:.2f} | Predicted: {y_pred[i][0]:.2f}")
+  --> shows 5 actual vs predicted prices
+
+
+--- STEP 10: PLOT ---
+
+plt.plot(history.history['loss'], label='Training Loss')
+plt.plot(history.history['val_loss'], label='Validation Loss')
+plt.legend()
+plt.title("Loss Graph")
+plt.show()
+  --> plots how loss decreased over epochs
+  --> both lines should go DOWN = model is learning
+  --> if train goes down but val goes UP = OVERFITTING
+
+
+
+===============================================================
+  PRACTICAL 2: IMDB SENTIMENT CLASSIFICATION
+===============================================================
+
+AIM: Classify movie reviews as Positive or Negative.
+
+PROBLEM TYPE: Binary Classification (2 classes)
+
+MODEL: Deep Neural Network (DNN) with 2 hidden layers
+
+DATASET: 50,000 movie reviews with 'positive' or 'negative' labels
+
+CHALLENGE: Computers dont understand text, so we convert text
+           to numbers using TF-IDF.
+
+WHAT IS TF-IDF?
+  TF  = Term Frequency = how often a word appears in ONE review
+  IDF = Inverse Document Frequency = how rare the word is overall
+  TF x IDF = importance score
+  Common words like "the" get LOW score
+  Special words like "masterpiece" get HIGH score
+
+
+----------- CODE LINE BY LINE -----------
+
+
+--- STEP 1: IMPORTS ---
+
+import re
+  --> Regular Expressions library for text cleaning
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+  --> converts text into numbers using TF-IDF method
+
+
+--- STEP 2: LOAD DATASET ---
+
+df = pd.read_csv("IMDB_Dataset.csv",
+    encoding_errors='ignore',
+    on_bad_lines='skip',
+    engine='python')
+  --> encoding_errors='ignore' = skip unreadable characters
+  --> on_bad_lines='skip' = skip broken rows
+  --> engine='python' = use flexible CSV reader
+
+
+--- STEP 3: FIX COLUMN NAMES ---
+
+df.columns = ['review', 'sentiment']
+  --> renames columns to simple names
+
+
+--- STEP 4: CLEAN TEXT ---
+
+def clean_text(text):
+    text = str(text)
+      --> converts to string (handles NaN values)
+
+    text = text.lower()
+      --> makes lowercase: "GREAT Movie" becomes "great movie"
+
+    text = re.sub(r'<.*?>', '', text)
+      --> removes HTML tags: "<br>hello" becomes "hello"
+
+    text = re.sub(r'[^a-zA-Z ]', '', text)
+      --> removes everything thats NOT a letter or space
+      --> "good!!! 123" becomes "good "
+
+df['review'] = df['review'].apply(clean_text)
+  --> applies cleaning function to every review
+
+  WHY clean?
+    HTML tags and symbols add noise
+    They dont help predict sentiment
+
+
+--- STEP 5: CONVERT LABELS ---
+
+df['sentiment'] = df['sentiment'].map({'positive': 1, 'negative': 0})
+  --> neural networks need numbers, not words
+  --> positive becomes 1, negative becomes 0
+
+
+--- STEP 6: TF-IDF VECTORIZATION ---
+
+vectorizer = TfidfVectorizer(max_features=5000)
+  --> creates TF-IDF converter, keeps only top 5000 words
+
+X = vectorizer.fit_transform(df['review']).toarray()
+  --> converts each review into a list of 5000 numbers
+  --> each number = importance of that word in that review
+
+y = df['sentiment']
+  --> labels: 0 or 1
+
+
+--- STEP 7: TRAIN-TEST SPLIT ---
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+  --> 80% train, 20% test
+
+
+--- STEP 8: BUILD DNN MODEL ---
+
+model = Sequential()
+
+model.add(Dense(128, activation='relu', input_shape=(X_train.shape[1],)))
+  --> Hidden Layer 1: 128 neurons
+  --> input_shape=(5000,) = takes 5000 TF-IDF features
+  --> relu = if value > 0 keep it, if < 0 make it 0
+
+model.add(Dense(64, activation='relu'))
+  --> Hidden Layer 2: 64 neurons
+
+model.add(Dense(1, activation='sigmoid'))
+  --> Output Layer: 1 neuron
+  --> sigmoid = squeezes output between 0 and 1
+  --> if output > 0.5 then Positive, else Negative
+
+  ARCHITECTURE:
+  Input(5000) --> [128 relu] --> [64 relu] --> [1 sigmoid] --> 0 or 1
+
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+  --> binary_crossentropy = loss function for 2-class problems
+  --> accuracy = percentage of correct predictions
+
+
+--- STEP 9: TRAIN ---
+
+history = model.fit(X_train, y_train, epochs=10, batch_size=32,
+                    validation_data=(X_test, y_test))
+  --> 10 epochs, batch size 32
+  --> validation_data = use test data to monitor each epoch
+
+
+--- STEP 10: EVALUATE ---
+
+loss, accuracy = model.evaluate(X_test, y_test)
+print("Final Accuracy:", accuracy)
+  --> typically 85-88% accuracy
+
+
+
+===============================================================
+  PRACTICAL 3: FASHION MNIST CNN
+===============================================================
+
+AIM: Classify 28x28 clothing images into 10 categories.
+
+PROBLEM TYPE: Multi-class Classification (10 classes)
+
+MODEL: CNN (Convolutional Neural Network) - designed for images
+
+10 CLASSES:
+  0=T-shirt  1=Trouser  2=Pullover  3=Dress   4=Coat
+  5=Sandal   6=Shirt    7=Sneaker   8=Bag     9=Ankle boot
+
+DATASET: 60,000 training images + 10,000 test images
+         Each image: 28x28 pixels, grayscale
+
+WHY CNN INSTEAD OF DNN?
+  DNN treats each pixel independently - it doesnt know that
+  neighboring pixels form shapes.
+  CNN slides small filters across image to detect edges,
+  shapes, and patterns - understands SPATIAL relationships.
+
+NEW LAYERS:
+  Conv2D       = slides filter over image, detects features (edges)
+  MaxPooling2D = shrinks image, keeps strongest features
+  Dropout      = randomly turns off neurons to prevent overfitting
+  Flatten      = converts 2D image data to 1D list for Dense layer
+
+
+----------- CODE LINE BY LINE -----------
+
+
+--- STEP 1: IMPORTS ---
+
+from tensorflow.keras.layers import (
+    Conv2D, MaxPooling2D, Dropout, Flatten, Dense
+)
+  --> importing all CNN-specific layers
+
+
+--- STEP 2: LOAD DATA ---
+
+train_df = pd.read_csv('fashion_train.csv')
+test_df  = pd.read_csv('fashion_test.csv')
+  --> train_df shape = (60000, 785)
+  --> 785 columns = 1 label + 784 pixels (28x28 = 784)
+
+class_names = ["T-shirt/top", "Trouser", "Pullover", "Dress", "Coat",
+               "Sandal", "Shirt", "Sneaker", "Bag", "Ankle boot"]
+  --> human-readable names for labels 0-9
+
+
+--- STEP 3: PREPARE DATA ---
+
+X_train = train_df.iloc[:, 1:].to_numpy()
+  --> takes all columns EXCEPT first (pixel values)
+
+y_train = train_df.iloc[:, 0].to_numpy()
+  --> takes only first column (labels 0-9)
+
+X_train = X_train.reshape(-1, 28, 28, 1) / 255.0
+  --> reshape: flat 784 numbers --> 28x28x1 image format
+      -1 = auto-calculate (60000 images)
+      28, 28 = height and width
+      1 = grayscale (1 color channel, RGB would be 3)
+  --> /255.0: pixels go from 0-255 to 0-1 (normalization)
+
+  WHY reshape?
+    CSV stores each image as flat row of 784 numbers.
+    Conv2D needs 2D image: (height, width, channels)
+
+  WHY /255?
+    Smaller numbers = model trains faster and better
+
+
+--- STEP 4: BUILD CNN MODEL ---
+
+model = Sequential([
+
+    Conv2D(64, (3,3), activation='relu', input_shape=(28,28,1)),
+      --> 64 = number of filters (64 different feature detectors)
+      --> (3,3) = each filter is 3x3 pixels
+      --> slides across image, creates feature maps
+      --> output: 28-3+1 = 26, so 26 x 26 x 64
+
+    MaxPooling2D((2,2)),
+      --> takes 2x2 window, keeps only the MAX value
+      --> 26x26 becomes 13x13 (halves each dimension)
+      --> keeps strongest features, reduces computation
+
+    Dropout(0.3),
+      --> randomly turns OFF 30% of neurons during training
+      --> forces network to not rely on single neurons
+      --> prevents overfitting
+      --> automatically TURNED OFF during prediction
+
+    Flatten(),
+      --> 13 x 13 x 64 = 10,816 values flattened to 1D list
+      --> needed because Dense layer expects 1D input
+
+    Dense(32, activation='relu'),
+      --> 32 neurons, learns feature combinations
+
+    Dense(10, activation='softmax')
+      --> 10 neurons (one per class)
+      --> softmax = probabilities that sum to 1.0
+      --> example: [0.01, 0.02, 0.8, 0.01, ...]
+      --> highest = class 2 = Pullover
+])
+
+
+--- STEP 5: COMPILE ---
+
+model.compile(optimizer='adam',
+              loss='sparse_categorical_crossentropy',
+              metrics=['accuracy'])
+  --> sparse = labels are integers (0,1,2...9)
+  --> categorical = multiple categories
+  --> if labels were one-hot like [0,0,1,0,...] use categorical_crossentropy
+
+
+--- STEP 6: TRAIN ---
+
+history = model.fit(X_train, y_train, epochs=5, batch_size=32,
+                    validation_split=0.2)
+  --> only 5 epochs needed - CNN learns fast
+  --> achieves 88-91% accuracy
+
+
+--- STEP 7: PREDICT ---
+
+predictions = model.predict(X_test).argmax(axis=1)
+  --> model.predict gives 10 probabilities per image
+  --> argmax picks the INDEX with highest probability
+  --> that index IS the predicted class
+
+
+
+===============================================================
+  PRACTICAL 4: GOOGLE STOCK PRICE PREDICTION (RNN)
+===============================================================
+
+AIM: Use past 60 days of stock prices to predict next days price.
+
+PROBLEM TYPE: Time-Series Regression
+
+MODEL: RNN (Recurrent Neural Network) - has memory for sequences
+
+WHY RNN?
+  Stock prices are sequential - today depends on yesterday.
+  DNN treats each input independently, no concept of order.
+  RNN processes data step by step, carries HIDDEN STATE (memory).
+
+HOW RNN WORKS:
+  Day 1 price --> [RNN] --> remembers Day 1
+  Day 2 price --> [RNN] --> remembers Day 1 + Day 2
+  Day 3 price --> [RNN] --> remembers Day 1 + Day 2 + Day 3
+  ...
+  Day 60 --> [RNN] --> uses all 60 days --> predicts Day 61
+
+
+----------- CODE LINE BY LINE -----------
+
+
+--- STEP 1: IMPORTS ---
+
+from sklearn.preprocessing import MinMaxScaler
+  --> scales data to range [0, 1]
+
+from tensorflow.keras.layers import Dense, SimpleRNN
+  --> SimpleRNN = basic RNN layer with memory
+
+
+--- STEP 2: LOAD DATASET ---
+
+df = pd.read_csv("Google_Stock_Price.csv", thousands=',')
+  --> thousands=',' handles numbers like "1,234.56"
+
+data = pd.to_numeric(df['Open'], errors='coerce').dropna().values.reshape(-1,1)
+  --> pd.to_numeric = converts 'Open' price to numbers
+  --> errors='coerce' = bad values become NaN
+  --> dropna() = remove NaN values
+  --> reshape(-1,1) = make it a column (needed for scaler)
+
+
+--- STEP 3: SCALE DATA ---
+
+scaler = MinMaxScaler(feature_range=(0,1))
+data_scaled = scaler.fit_transform(data)
+  --> scales all prices to [0, 1]
+  --> example: min=50, max=1500, then 775 becomes 0.5
+  --> WHY? RNN works much better with small values
+
+
+--- STEP 4: TRAIN-TEST SPLIT ---
+
+train_size = int(len(data_scaled) * 0.8)
+train_data = data_scaled[:train_size]
+test_data = data_scaled[train_size:]
+  --> first 80% = training, last 20% = testing
+  --> NO RANDOM SHUFFLE! time-series must stay in order
+
+
+--- STEP 5: CREATE SLIDING WINDOW DATASET ---
+
+def create_dataset(dataset):
+    X = []
+    y = []
+    for i in range(60, len(dataset)):
+        X.append(dataset[i-60:i, 0])    # past 60 days = input
+        y.append(dataset[i, 0])          # day 61 = target
+    return np.array(X), np.array(y)
+
+  THIS IS THE KEY CONCEPT:
+  Window 1: [Day1, Day2, ..., Day60]  --> predict Day61
+  Window 2: [Day2, Day3, ..., Day61]  --> predict Day62
+  Window 3: [Day3, Day4, ..., Day62]  --> predict Day63
+  The window SLIDES forward by 1 each time.
+
+X_train, y_train = create_dataset(train_data)
+X_test, y_test = create_dataset(test_data)
+
+
+--- STEP 6: RESHAPE FOR RNN ---
+
+X_train = np.reshape(X_train, (X_train.shape[0], X_train.shape[1], 1))
+  --> RNN needs 3D input: (samples, timesteps, features)
+  --> X_train.shape[0] = number of samples
+  --> X_train.shape[1] = 60 timesteps
+  --> 1 = one feature per timestep (just the price)
+
+
+--- STEP 7: BUILD RNN MODEL ---
+
+model = Sequential()
+
+model.add(SimpleRNN(50, return_sequences=True, input_shape=(60,1)))
+  --> 50 hidden units (memory size)
+  --> input_shape=(60,1) = 60 timesteps, 1 feature each
+  --> return_sequences=True = output at EVERY timestep
+  --> WHY True? Another RNN layer comes next, needs all outputs
+  --> output shape: (60, 50)
+
+model.add(SimpleRNN(50))
+  --> 50 hidden units
+  --> return_sequences=False (default) = output ONLY last timestep
+  --> WHY False? Dense layer comes next, needs just one vector
+  --> output shape: (50,)
+
+model.add(Dense(1))
+  --> one neuron, linear activation (default)
+  --> predicts one price value
+
+model.compile(optimizer='adam', loss='mean_squared_error')
+  --> MSE loss because this is regression
+
+
+--- STEP 8: TRAIN ---
+
+model.fit(X_train, y_train, epochs=20, batch_size=32)
+
+
+--- STEP 9: PREDICT AND CONVERT BACK ---
+
+predicted = model.predict(X_test)
+  --> predictions are in scaled [0,1] range
+
+predicted = scaler.inverse_transform(predicted)
+  --> converts [0,1] back to actual dollar prices
+  --> example: 0.5 becomes $775
+
+real = scaler.inverse_transform(y_test.reshape(-1,1))
+  --> same for actual prices
+
+
+--- STEP 10: PLOT ---
+
+plt.plot(real, color='red', label='Real Price')
+plt.plot(predicted, color='blue', label='Predicted Price')
+plt.title("Google Stock Price Prediction (RNN)")
+plt.legend()
+plt.show()
+  --> red = actual prices, blue = predicted
+  --> blue follows red closely = good model
+
+
+
+===============================================================
+              QUICK COMPARISON OF ALL 4 DL PRACTICALS
+===============================================================
+
+                Boston     IMDB       Fashion    Stock
+Problem:        Regression Binary     Multi(10)  Regression
+Data:           Numbers    Text       Images     Time-series
+Network:        1 neuron   DNN        CNN        RNN
+Scaling:        Standard   TF-IDF     /255       MinMax
+Output layer:   Dense(1)   Dense(1)   Dense(10)  Dense(1)
+Activation:     linear     sigmoid    softmax    linear
+Loss:           mse        binary_CE  sparse_CE  mse
+Metric:         MAE        accuracy   accuracy   MSE
+
+===============================================================

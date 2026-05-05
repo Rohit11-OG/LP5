@@ -1,0 +1,17 @@
+# Compiled binaries
+*.out
+*.exe
+*.o
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
